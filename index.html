@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>TeamPunch · universal clock in & out</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(145deg, #e9f0fc 0%, #d9e2f0 100%);
+            min-height: 100vh;
+            padding: 2rem 1.5rem;
+        }
+
+        /* main container */
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* header */
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .header h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1A2A4F, #2c3e66);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+        }
+
+        .header p {
+            color: #2c3e66;
+            margin-top: 0.5rem;
+            font-weight: 500;
+            background: rgba(255,255,240,0.6);
+            display: inline-block;
+            padding: 0.2rem 1.2rem;
+            border-radius: 40px;
+            backdrop-filter: blur(2px);
+        }
+
+        /* user selection area (for multi-user simulation) */
+        .user-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(8px);
+            border-radius: 48px;
+            padding: 0.8rem 1.2rem;
+            margin-bottom: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+
+        .user-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .user-badge {
+            background: white;
+            padding: 0.5rem 1.2rem;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #cddfe7;
+            color: #1f3b4c;
+        }
+
+        .user-badge.active-user {
+            background: #1f6392;
+            border-color: #0e4a70;
+            color: white;
+            box-shadow: 0 6px 12px rgba(31,99,146,0.25);
+        }
+
+        .user-badge:hover:not(.active-user) {
+            background: #eef3fc;
+            transform: translateY(-1px);
+        }
+
+        .add-user-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: white;
+            padding: 0.2rem 0.2rem 0.2rem 1rem;
+            border-radius: 60px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+
+        .add-user-form input {
+            border: none;
+            padding: 0.5rem 0.2rem;
+            font-size: 0.9rem;
+            min-width: 130px;
+            outline: none;
+            background: transparent;
+        }
+
+        .add-user-form button {
+            background: #2c6e9e;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+
+        .add-user-form button:hover {
+            background: #1f4e72;
+        }
+
+        /* main two-column layout */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 1.8rem;
+        }
+
+        /* cards */
+        .card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(4px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.15);
+            padding: 1.5rem 1.8rem;
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,240,0.7);
+        }
+
+        .card h2 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #1e2f41;
+            border-left: 5px solid #2c7ab1;
+            padding-left: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* clock area */
+        .active-session {
+            background: #eef3fc;
+            border-radius: 2rem;
+            padding: 1.2rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .status-badge {
+            font-size: 1rem;
+            font-weight: 600;
+            background: #e0e8f0;
+            display: inline-block;
+            padding: 0.3rem 1rem;
+            border-radius: 30px;
+            margin-bottom: 1rem;
+        }
+
+        .status-badge.clocked-in {
+            background: #c8f0d1;
+            color: #1d6f2c;
+        }
+
+        .status-badge.clocked-out {
+            background: #ffe1cc;
+            color: #b65311;
+        }
+
+        .time-large {
+            font-size: 3rem;
+            font-weight: 700;
+            font-family: monospace;
+            letter-spacing: 2px;
+            background: #1f2a3e;
+            display: inline-block;
+            padding: 0.3rem 1rem;
+            border-radius: 48px;
+            color: #c7e9ff;
+            margin: 0.8rem 0;
+        }
+
+        .punch-btn {
+            background: #1f6392;
+            border: none;
+            color: white;
+            font-weight: 700;
+            font-size: 1.4rem;
+            padding: 0.9rem 1.8rem;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: 0.2s;
+            width: 80%;
+            box-shadow: 0 6px 0 #0f3a54;
+            transform: translateY(-2px);
+        }
+
+        .punch-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #0f3a54;
+        }
+
+        .punch-btn.clock-out {
+            background: #c25d3a;
+            box-shadow: 0 6px 0 #823b20;
+        }
+
+        /* log table */
+        .log-container {
+            max-height: 460px;
+            overflow-y: auto;
+            border-radius: 1.2rem;
+        }
+
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .log-table th {
+            text-align: left;
+            padding: 0.7rem 0.5rem;
+            background: #eef2f7;
+            position: sticky;
+            top: 0;
+            font-weight: 600;
+            color: #1a3e55;
+        }
+
+        .log-table td {
+            padding: 0.7rem 0.5rem;
+            border-bottom: 1px solid #e2e9f0;
+        }
+
+        .log-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .chip {
+            background: #e1e9f1;
+            padding: 0.2rem 0.7rem;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .chip.in {
+            background: #c0e0c6;
+            color: #155d27;
+        }
+
+        .chip.out {
+            background: #fad6c0;
+            color: #b4430c;
+        }
+
+        .empty-log {
+            text-align: center;
+            padding: 2rem;
+            color: #6f8faa;
+        }
+
+        /* actions */
+        .action-buttons {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .sec-btn {
+            background: transparent;
+            border: 1px solid #bacddb;
+            padding: 0.4rem 1rem;
+            border-radius: 30px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.1s;
+            color: #2f587b;
+        }
+
+        .sec-btn:hover {
+            background: #eef2f7;
+            border-color: #7b9cbb;
+        }
+
+        @media (max-width: 850px) {
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            body {
+                padding: 1rem;
+            }
+            .punch-btn {
+                width: 100%;
+            }
+        }
+
+        footer {
+            margin-top: 2.5rem;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #4f6f8f;
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <div class="header">
+        <h1>⏱️ Punch Clock · Team Hub</h1>
+        <p>All users can clock in / out — real-time activity log</p>
+    </div>
+
+    <div class="user-panel" id="userPanel">
+        <!-- dynamic user list from js -->
+    </div>
+
+    <div class="grid">
+        <!-- LEFT: punch card area -->
+        <div class="card" id="punchCard">
+            <h2>✋ Active session</h2>
+            <div id="sessionArea">
+                <!-- dynamic content based on selected user -->
+            </div>
+            <div class="action-buttons">
+                <button class="sec-btn" id="resetAllBtn">⟳ Reset all data (demo reset)</button>
+                <button class="sec-btn" id="exportLogBtn">📄 Export all logs (CSV)</button>
+            </div>
+        </div>
+
+        <!-- RIGHT: activity log -->
+        <div class="card">
+            <h2>📋 Punch history</h2>
+            <div class="log-container" id="logContainer">
+                <!-- timeline logs per user -->
+                <div class="empty-log">Select a user to see their activity</div>
+            </div>
+        </div>
+    </div>
+    <footer>
+        💡 Every user can punch in/out independently. The system tracks clock-in time & calculates duration after clock-out.
+    </footer>
+</div>
+
+<script>
+    // ---------- DATA MODEL ----------
+    // Store all users in an object: userId -> { name, status: 'in'|'out', currentSessionStart: timestamp|null, logs: [] }
+    // logs: each entry { type: 'in'|'out', timestamp: ISO, durationMinutes: number|null (only for out) }
+
+    let users = new Map();     // key: id (string), value: userObject
+    let nextUserId = 1;
+    let currentSelectedUserId = null;
+
+    // Helper: generate readable time
+    function formatTime(date = new Date()) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function formatDate(date = new Date()) {
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+
+    function formatFullDateTime(isoString) {
+        const d = new Date(isoString);
+        return `${formatDate(d)} ${formatTime(d)}`;
+    }
+
+    function formatDurationMinutes(minutes) {
+        if (minutes === null || minutes === undefined) return '—';
+        const hrs = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        if (hrs === 0) return `${mins} min`;
+        return `${hrs}h ${mins}min`;
+    }
+
+    // Create a new user
+    function addUser(userName) {
+        if (!userName || userName.trim() === "") userName = "Guest";
+        userName = userName.trim();
+        const id = String(nextUserId++);
+        const newUser = {
+            id: id,
+            name: userName,
+            status: "out",        // 'in' or 'out'
+            currentSessionStart: null,   // timestamp when clocked in
+            logs: []              // array of log entries
+        };
+        users.set(id, newUser);
+        saveToLocalStorage();
+        renderUserSelector();
+        // if no user selected, select this new one
+        if (currentSelectedUserId === null || !users.has(currentSelectedUserId)) {
+            selectUser(id);
+        } else {
+            // refresh current view to show logs if needed
+            if (currentSelectedUserId === id) renderPunchAreaAndLogs();
+            else renderLogsForSelectedUser();
+        }
+        return id;
+    }
+
+    // clock in logic
+    function clockIn(userId) {
+        const user = users.get(userId);
+        if (!user) return false;
+        if (user.status === "in") {
+            alert(`⚠️ ${user.name} is already clocked IN! Please clock out first.`);
+            return false;
+        }
+        const now = new Date();
+        const timestamp = now.toISOString();
+        // add log entry (type: in)
+        user.logs.push({
+            type: "in",
+            timestamp: timestamp,
+            durationMinutes: null
+        });
+        user.status = "in";
+        user.currentSessionStart = timestamp;
+        saveToLocalStorage();
+        // if selected user is the one we changed, refresh UI
+        if (currentSelectedUserId === userId) {
+            renderPunchAreaAndLogs();
+            renderLogsForSelectedUser();
+        } else {
+            // just update logs storage and potentially update user selector status indicator
+            renderUserSelector(); // update badge style maybe
+        }
+        return true;
+    }
+
+    // clock out logic: compute duration
+    function clockOut(userId) {
+        const user = users.get(userId);
+        if (!user) return false;
+        if (user.status !== "in") {
+            alert(`⚠️ ${user.name} is not clocked in. Can't clock out.`);
+            return false;
+        }
+        const now = new Date();
+        const outTimestamp = now.toISOString();
+        const startTime = new Date(user.currentSessionStart);
+        const durationMs = now - startTime;
+        const durationMinutes = Math.floor(durationMs / 60000);
+        // add out log
+        user.logs.push({
+            type: "out",
+            timestamp: outTimestamp,
+            durationMinutes: durationMinutes
+        });
+        user.status = "out";
+        user.currentSessionStart = null;
+        saveToLocalStorage();
+        if (currentSelectedUserId === userId) {
+            renderPunchAreaAndLogs();
+            renderLogsForSelectedUser();
+        } else {
+            renderUserSelector();
+        }
+        return true;
+    }
+
+    // render user selector (list of badges + add form)
+    function renderUserSelector() {
+        const panel = document.getElementById("userPanel");
+        if (!panel) return;
+        let html = `<div class="user-selector">`;
+        for (let [id, user] of users.entries()) {
+            const activeClass = (currentSelectedUserId === id) ? "active-user" : "";
+            const statusIndicator = user.status === 'in' ? '🔴 IN' : '⚪ OUT';
+            html += `<div class="user-badge ${activeClass}" data-userid="${id}">
+                        ${escapeHtml(user.name)} <span style="font-size:0.7rem; opacity:0.8;">(${statusIndicator})</span>
+                     </div>`;
+        }
+        html += `</div>
+                 <div class="add-user-form">
+                    <input type="text" id="newUserName" placeholder="New user name" maxlength="20">
+                    <button id="addUserBtn">+ Add user</button>
+                 </div>`;
+        panel.innerHTML = html;
+
+        // attach event listeners to user badges
+        document.querySelectorAll('.user-badge').forEach(el => {
+            const uid = el.getAttribute('data-userid');
+            if (uid) {
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectUser(uid);
+                });
+            }
+        });
+        const addBtn = document.getElementById("addUserBtn");
+        const nameInput = document.getElementById("newUserName");
+        if (addBtn) {
+            addBtn.addEventListener('click', () => {
+                const newName = nameInput ? nameInput.value.trim() : "";
+                if (newName === "") addUser("Team member");
+                else addUser(newName);
+                if (nameInput) nameInput.value = "";
+            });
+        }
+        if (nameInput) {
+            nameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = nameInput.value.trim();
+                    if (val) addUser(val);
+                    nameInput.value = "";
+                }
+            });
+        }
+    }
+
+    // render punch card area (left side) based on selected user
+    function renderPunchAreaAndLogs() {
+        if (!currentSelectedUserId || !users.has(currentSelectedUserId)) {
+            const sessionDiv = document.getElementById("sessionArea");
+            if (sessionDiv) sessionDiv.innerHTML = `<div class="active-session" style="text-align:center; padding:2rem;">👈 Select a user from the top bar to clock in/out</div>`;
+            renderLogsForSelectedUser();
+            return;
+        }
+        const user = users.get(currentSelectedUserId);
+        const isClockedIn = (user.status === 'in');
+        const statusText = isClockedIn ? "✅ CLOCKED IN" : "⭕ CLOCKED OUT";
+        const statusClass = isClockedIn ? "clocked-in" : "clocked-out";
+        let currentSessionInfo = "";
+        if (isClockedIn && user.currentSessionStart) {
+            const startLocal = new Date(user.currentSessionStart);
+            const elapsedMs = new Date() - startLocal;
+            const elapsedMinutes = Math.floor(elapsedMs / 60000);
+            const hours = Math.floor(elapsedMinutes / 60);
+            const mins = elapsedMinutes % 60;
+            const elapsedStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} minutes`;
+            currentSessionInfo = `<div style="margin-top: 0.5rem; font-size:0.9rem;">⏳ Current session: ${elapsedStr} elapsed</div>`;
+        } else {
+            currentSessionInfo = `<div style="margin-top: 0.5rem; font-size:0.85rem; color:#4b6e8a;">Last session finished — ready to punch in</div>`;
+        }
+
+        const buttonText = isClockedIn ? "🔴 CLOCK OUT" : "🟢 CLOCK IN";
+        const buttonAction = isClockedIn ? `clockOut('${currentSelectedUserId}')` : `clockIn('${currentSelectedUserId}')`;
+        const btnClass = isClockedIn ? "punch-btn clock-out" : "punch-btn";
+
+        const sessionHtml = `
+            <div class="active-session">
+                <div class="status-badge ${statusClass}">${statusText}</div>
+                <div style="font-weight:500;">👤 ${escapeHtml(user.name)}</div>
+                <div class="time-large">${formatTime(new Date())}</div>
+                ${currentSessionInfo}
+                <button class="${btnClass}" id="punchActionBtn">${buttonText}</button>
+            </div>
+        `;
+        const sessionDiv = document.getElementById("sessionArea");
+        if (sessionDiv) sessionDiv.innerHTML = sessionHtml;
+        const punchBtn = document.getElementById("punchActionBtn");
+        if (punchBtn) {
+            punchBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (user.status === 'in') {
+                    clockOut(currentSelectedUserId);
+                } else {
+                    clockIn(currentSelectedUserId);
+                }
+            });
+        }
+
+        // also refresh logs for this user
+        renderLogsForSelectedUser();
+    }
+
+    // render logs table for currently selected user
+    function renderLogsForSelectedUser() {
+        const logContainer = document.getElementById("logContainer");
+        if (!logContainer) return;
+        if (!currentSelectedUserId || !users.has(currentSelectedUserId)) {
+            logContainer.innerHTML = `<div class="empty-log">👈 Select a user from the top bar to see their punch history</div>`;
+            return;
+        }
+        const user = users.get(currentSelectedUserId);
+        const logs = user.logs;
+        if (!logs.length) {
+            logContainer.innerHTML = `<div class="empty-log">📭 No punch activity for ${escapeHtml(user.name)} yet.<br>Click CLOCK IN to start.</div>`;
+            return;
+        }
+
+        let rows = "";
+        // we'll group pairs? but we show each entry sequentially.
+        for (let i = 0; i < logs.length; i++) {
+            const entry = logs[i];
+            const type = entry.type;
+            const timestampFmt = formatFullDateTime(entry.timestamp);
+            let detail = "";
+            if (type === 'in') {
+                detail = `<span class="chip in">CLOCK IN</span>`;
+            } else {
+                const durationTxt = entry.durationMinutes !== null ? formatDurationMinutes(entry.durationMinutes) : '—';
+                detail = `<span class="chip out">CLOCK OUT</span> <span style="font-size:0.7rem;">(${durationTxt})</span>`;
+            }
+            rows += `<tr>
+                        <td style="white-space: nowrap;">${timestampFmt}</td>
+                        <td>${detail}</td>
+                     </tr>`;
+        }
+        // optional summary: total time worked (sum of durations of out logs)
+        let totalMinutes = 0;
+        logs.forEach(entry => {
+            if (entry.type === 'out' && entry.durationMinutes) totalMinutes += entry.durationMinutes;
+        });
+        const summaryHtml = `<div style="margin-top: 0.8rem; border-top: 1px solid #cbdbe0; padding-top: 0.6rem; font-size:0.75rem; text-align:right;">📊 Total worked (all sessions): ${formatDurationMinutes(totalMinutes)}</div>`;
+        logContainer.innerHTML = `<table class="log-table"><thead><tr><th>Date & Time</th><th>Event</th></tr></thead><tbody>${rows}</tbody></table>${summaryHtml}`;
+    }
+
+    // change selected user
+    function selectUser(userId) {
+        if (!users.has(userId)) return;
+        currentSelectedUserId = userId;
+        renderUserSelector();      // refresh active highlight
+        renderPunchAreaAndLogs();  // left side + logs
+    }
+
+    // reset everything (clear all users, add a default demo user)
+    function resetAllData() {
+        users.clear();
+        nextUserId = 1;
+        // create two demo users with realistic logs
+        const demoUser1 = {
+            id: String(nextUserId++),
+            name: "Alex Chen",
+            status: "out",
+            currentSessionStart: null,
+            logs: []
+        };
+        // simulate some prior logs
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setHours(9, 5, 0);
+        const outYesterday = new Date(yesterday);
+        outYesterday.setHours(17, 20, 0);
+        demoUser1.logs.push({ type: "in", timestamp: yesterday.toISOString(), durationMinutes: null });
+        const duration1 = Math.floor((outYesterday - yesterday) / 60000);
+        demoUser1.logs.push({ type: "out", timestamp: outYesterday.toISOString(), durationMinutes: duration1 });
+
+        const todayMorning = new Date();
+        todayMorning.setHours(8, 45, 0);
+        if (todayMorning > new Date()) todayMorning.setDate(todayMorning.getDate() - 1);
+        demoUser1.logs.push({ type: "in", timestamp: todayMorning.toISOString(), durationMinutes: null });
+        // not clocked out? we leave status as 'out' but keep open? for demo we close it artificially
+        const todayOut = new Date(todayMorning);
+        todayOut.setHours(12, 30, 0);
+        const duration2 = Math.floor((todayOut - todayMorning) / 60000);
+        demoUser1.logs.push({ type: "out", timestamp: todayOut.toISOString(), durationMinutes: duration2 });
+        demoUser1.status = "out";
+        demoUser1.currentSessionStart = null;
+        users.set(demoUser1.id, demoUser1);
+
+        const demoUser2 = {
+            id: String(nextUserId++),
+            name: "Samira Jones",
+            status: "in",   // currently clocked in for demo
+            currentSessionStart: new Date(Date.now() - 47 * 60000).toISOString(),
+            logs: []
+        };
+        const twoHoursAgo = new Date(Date.now() - 47 * 60000);
+        demoUser2.logs.push({ type: "in", timestamp: twoHoursAgo.toISOString(), durationMinutes: null });
+        users.set(demoUser2.id, demoUser2);
+        // also add a default third user
+        const demoUser3 = {
+            id: String(nextUserId++),
+            name: "Taylor Wu",
+            status: "out",
+            currentSessionStart: null,
+            logs: []
+        };
+        users.set(demoUser3.id, demoUser3);
+        saveToLocalStorage();
+        // select first user by default
+        const firstId = demoUser1.id;
+        currentSelectedUserId = firstId;
+        renderUserSelector();
+        renderPunchAreaAndLogs();
+        renderLogsForSelectedUser();
+    }
+
+    // export all logs (all users) as CSV
+    function exportAllLogsCSV() {
+        if (users.size === 0) {
+            alert("No users available to export.");
+            return;
+        }
+        let csvRows = [["User", "Event Type", "Timestamp (ISO)", "Duration (minutes)", "Readable DateTime"]];
+        for (let [uid, user] of users.entries()) {
+            for (let log of user.logs) {
+                const eventType = log.type === 'in' ? 'CLOCK IN' : 'CLOCK OUT';
+                const durationStr = (log.durationMinutes !== null && log.type === 'out') ? log.durationMinutes : '';
+                const readable = log.timestamp ? new Date(log.timestamp).toLocaleString() : '';
+                csvRows.push([
+                    escapeCsvCell(user.name),
+                    eventType,
+                    log.timestamp || '',
+                    durationStr,
+                    readable
+                ]);
+            }
+        }
+        if (csvRows.length === 1) {
+            alert("No punch records yet. Create some first!");
+            return;
+        }
+        const csvContent = csvRows.map(row => row.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.setAttribute("download", "punch_clock_logs.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    // helper for CSV escaping
+    function escapeCsvCell(cell) {
+        if (cell === undefined) return "";
+        let str = String(cell);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            str = '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return "";
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+            return c;
+        });
+    }
+
+    // localStorage persistence (optional but nice)
+    function saveToLocalStorage() {
+        const store = {
+            users: Array.from(users.entries()),
+            nextUserId: nextUserId,
+            currentSelectedUserId: currentSelectedUserId
+        };
+        localStorage.setItem("PunchClockData", JSON.stringify(store));
+    }
+
+    function loadFromLocalStorage() {
+        const raw = localStorage.getItem("PunchClockData");
+        if (!raw) {
+            resetAllData();
+            return;
+        }
+        try {
+            const store = JSON.parse(raw);
+            if (store.users && Array.isArray(store.users)) {
+                users.clear();
+                for (let [id, userObj] of store.users) {
+                    users.set(id, userObj);
+                }
+                nextUserId = store.nextUserId || nextUserId;
+                currentSelectedUserId = store.currentSelectedUserId || null;
+                if (currentSelectedUserId && !users.has(currentSelectedUserId)) {
+                    currentSelectedUserId = users.size ? Array.from(users.keys())[0] : null;
+                }
+                renderUserSelector();
+                if (currentSelectedUserId) {
+                    renderPunchAreaAndLogs();
+                } else if (users.size) {
+                    selectUser(Array.from(users.keys())[0]);
+                } else {
+                    resetAllData();
+                }
+            } else {
+                resetAllData();
+            }
+        } catch(e) {
+            resetAllData();
+        }
+    }
+
+    // global event listeners
+    document.addEventListener("DOMContentLoaded", () => {
+        loadFromLocalStorage();
+        const resetBtn = document.getElementById("resetAllBtn");
+        if (resetBtn) {
+            resetBtn.addEventListener("click", () => {
+                if (confirm("⚠️ Reset all users, logs and data? This cannot be undone.")) {
+                    resetAllData();
+                }
+            });
+        }
+        const exportBtn = document.getElementById("exportLogBtn");
+        if (exportBtn) {
+            exportBtn.addEventListener("click", () => {
+                exportAllLogsCSV();
+            });
+        }
+        // realtime clock update for current session
+        setInterval(() => {
+            if (currentSelectedUserId && users.has(currentSelectedUserId) && users.get(currentSelectedUserId).status === 'in') {
+                renderPunchAreaAndLogs(); // refresh elapsed time and current clock display
+            }
+            // also update time-large element if needed
+            const timeElem = document.querySelector('.time-large');
+            if (timeElem && currentSelectedUserId && users.has(currentSelectedUserId)) {
+                timeElem.innerText = formatTime(new Date());
+            }
+        }, 1000);
+    });
+</script>
+</body>
+</html>
