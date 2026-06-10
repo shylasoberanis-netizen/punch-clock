@@ -330,4 +330,19 @@
     document.getElementById('backToLoginFromSignup').onclick=showLogin;
     document.getElementById('backToLoginFromForgot').onclick=showLogin;
     document.getElementById('backToLoginFromReset').onclick=showLogin;
-    document.getElementById('signupActionBtn').onclick=()=>{const e=document.getElementById('signupEmail').value.trim(),p=document.getElementById('signupPassword').value,c=document.getElementById('signupConfirm').value,reg=register(e,p,c
+    document.getElementById('signupActionBtn').onclick=()=>{const e=document.getElementById('signupEmail').value.trim(),p=document.getElementById('signupPassword').value,c=document.getElementById('signupConfirm').value,reg=register(e,p,c); if(reg.ok){alert('Account created! Sign in.'); showLogin();} else document.getElementById('signupError').innerText=reg.msg;};
+    document.getElementById('requestCodeBtn').onclick=async()=>{const email=document.getElementById('forgotEmail').value.trim(); const req=await requestPasswordReset(email); if(req.ok){resetEmailPending=email; document.getElementById('forgotSuccess').innerText='Code sent!'; setTimeout(()=>{document.getElementById('forgotView').style.display='none'; document.getElementById('resetView').style.display='flex';},1000);} else document.getElementById('forgotError').innerText=req.msg;};
+    document.getElementById('resetPwdBtn').onclick=()=>{if(!resetEmailPending){document.getElementById('resetError').innerText='Session expired';return;} const code=document.getElementById('resetCodeInput').value,np=document.getElementById('newPasswordInput').value,cf=document.getElementById('confirmNewPwd').value,res=resetPassword(resetEmailPending,code,np,cf); if(res.ok){alert('Password changed!'); showLogin();} else document.getElementById('resetError').innerText=res.msg;};
+    document.getElementById('globalLogoutBtn').onclick=()=>{if(window.timer) clearInterval(window.timer); showLogin();};
+    document.getElementById('workPunchButton').onclick=clockWork;
+    document.getElementById('lunchPunchButton').onclick=clockLunch;
+    document.getElementById('breakPunchButton').onclick=clockBreak;
+    
+    document.querySelectorAll('.admin-filter').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('.admin-filter').forEach(b=>b.classList.remove('admin-active')); btn.classList.add('admin-active'); if(currentUser && ADMIN_EMAILS.includes(currentUser.email)) renderAdminPanel(btn.dataset.admin); }));
+    
+    if(!findUser('demo@goanswer.io')) users.push({ email:'demo@goanswer.io', password:'demo123', logs:[], workStatus:'out', lunchStatus:'out', breakStatus:'out', currentWorkStart:null, currentLunchStart:null, currentBreakStart:null, profilePic:'', timezone:'America/New_York', theme:'light' });
+    saveUsers();
+    showLogin();
+</script>
+</body>
+</html>
